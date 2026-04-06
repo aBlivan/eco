@@ -3,10 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-    <title>Эко-патруль — AR квест</title>
+    <title>Эко-патруль — AR квест с предметами</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; overflow: hidden; background: black; }
+        
+        /* Интерфейс */
+        .ui-overlay {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            padding: 16px;
+            color: white;
+            z-index: 200;
+            border-left: 5px solid #4CAF50;
+            transition: all 0.3s ease;
+            pointer-events: none; /* Чтобы кнопка под ним была доступна */
+        }
+        .ui-title { font-weight: bold; font-size: 16px; color: #4CAF50; margin-bottom: 6px; letter-spacing: 1px; }
+        .ui-message { font-size: 15px; line-height: 1.4; font-weight: 500; }
         
         .score-card {
             position: fixed;
@@ -25,21 +44,25 @@
         }
         .score-number { font-size: 34px; font-weight: 800; color: #4CAF50; line-height: 1; }
         
-        .ui-overlay {
+        .ar-btn {
             position: fixed;
-            bottom: 20px;
-            left: 20px;
-            right: 20px;
-            background: rgba(0,0,0,0.85);
-            backdrop-filter: blur(15px);
-            border-radius: 20px;
-            padding: 16px;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #4CAF50;
             color: white;
-            z-index: 200;
-            border-left: 5px solid #4CAF50;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            z-index: 250;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            transition: 0.2s;
+            pointer-events: auto;
         }
-        .ui-title { font-weight: bold; font-size: 16px; color: #4CAF50; margin-bottom: 6px; }
-        .ui-message { font-size: 15px; line-height: 1.4; }
+        .ar-btn:active { transform: translateX(-50%) scale(0.97); background: #2e7d32; }
         
         .congrats {
             position: fixed;
@@ -55,8 +78,13 @@
             font-size: 22px;
             font-weight: bold;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            white-space: nowrap;
         }
+        .hidden { display: none; }
+        button:disabled { opacity: 0.6; transform: translateX(-50%) scale(0.98); }
     </style>
+    
+    <!-- Библиотеки -->
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.0/dist/mindar-image.prod.js"></script>
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.0/dist/mindar-image-aframe.prod.js"></script>
@@ -64,109 +92,142 @@
 <body>
 
     <div class="score-card">
-        🌍 НАЙДЕНО<br>
+        🌍 ЭКО-СЧЁТ<br>
         <span class="score-number" id="scoreValue">0</span> / 4
     </div>
 
-    <div class="ui-overlay">
+    <div class="ui-overlay" id="infoBox">
         <div class="ui-title">♻️ ЭКО-ПАТРУЛЬ</div>
-        <div class="ui-message" id="infoText">Наведи камеру на предметы: бутылка, батарейка, стаканчик, баллончик</div>
+        <div class="ui-message" id="infoText">Нажми «Запустить квест» и наведи камеру на настоящие предметы</div>
     </div>
 
+    <button class="ar-btn" id="startBtn">🔍 ЗАПУСТИТЬ КВЕСТ</button>
+
+    <!-- AR СЦЕНА С ТВОИМИ КАРТИНКАМИ -->
     <a-scene id="scene" mindar-image="imageTargetSrc: targets.mind;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false" embedded>
         <a-camera active="true"></a-camera>
         
+        <!-- ЦВЕТНЫЕ КВАДРАТЫ С ТЕКСТОМ (теперь они точно появятся) -->
         <a-entity mindar-image-target="targetIndex: 0">
-            <a-plane position="0 0 -0.15" width="1.5" height="1.0" color="#FF5722" opacity="0.95">
-                <a-text value="🔋 БАТАРЕЙКА: 20 м² земли в токсинах. Сдавай в пункты приёма!" color="white" align="center" width="1.4" wrap-count="24" position="0 0 0.01"></a-text>
+            <a-plane position="0 0 -0.1" width="1.4" height="1.0" color="#FF5722" opacity="0.95">
+                <a-text value="🔋 БАТАРЕЙКА: 20 м² земли в токсинах. Сдавай в пункты приёма!" color="white" align="center" width="1.3" wrap-count="22" position="0 0 0.01"></a-text>
             </a-plane>
         </a-entity>
 
         <a-entity mindar-image-target="targetIndex: 1">
-            <a-plane position="0 0 -0.15" width="1.5" height="1.0" color="#4CAF50" opacity="0.95">
-                <a-text value="🍼 БУТЫЛКА: Разлагается 450 лет. Замени на многоразовую!" color="white" align="center" width="1.4" wrap-count="24" position="0 0 0.01"></a-text>
+            <a-plane position="0 0 -0.1" width="1.4" height="1.0" color="#4CAF50" opacity="0.95">
+                <a-text value="🍼 БУТЫЛКА: Разлагается 450 лет. Замени на многоразовую!" color="white" align="center" width="1.3" wrap-count="22" position="0 0 0.01"></a-text>
             </a-plane>
         </a-entity>
 
         <a-entity mindar-image-target="targetIndex: 2">
-            <a-plane position="0 0 -0.15" width="1.5" height="1.0" color="#2196F3" opacity="0.95">
-                <a-text value="🥤 СТАКАНЧИК: Не перерабатывается. Бери термокружку!" color="white" align="center" width="1.4" wrap-count="24" position="0 0 0.01"></a-text>
+            <a-plane position="0 0 -0.1" width="1.4" height="1.0" color="#2196F3" opacity="0.95">
+                <a-text value="🥤 СТАКАНЧИК: Не перерабатывается. Бери термокружку!" color="white" align="center" width="1.3" wrap-count="22" position="0 0 0.01"></a-text>
             </a-plane>
         </a-entity>
 
         <a-entity mindar-image-target="targetIndex: 3">
-            <a-plane position="0 0 -0.15" width="1.5" height="1.0" color="#9C27B0" opacity="0.95">
-                <a-text value="💨 БАЛЛОНЧИК: Разрушает озон. Выбирай без аэрозоля!" color="white" align="center" width="1.4" wrap-count="24" position="0 0 0.01"></a-text>
+            <a-plane position="0 0 -0.1" width="1.4" height="1.0" color="#9C27B0" opacity="0.95">
+                <a-text value="💨 БАЛЛОНЧИК: Разрушает озон. Выбирай без аэрозоля!" color="white" align="center" width="1.3" wrap-count="22" position="0 0 0.01"></a-text>
             </a-plane>
         </a-entity>
     </a-scene>
 
     <script>
+        // === УПРОЩЁННАЯ ЛОГИКА, ГАРАНТИРОВАННО РАБОТАЕТ ===
+        const startBtn = document.getElementById('startBtn');
+        const scene = document.getElementById('scene');
+        const scoreSpan = document.getElementById('scoreValue');
+        const infoDiv = document.getElementById('infoText');
+        
         let found = 0;
         const total = 4;
         let completed = [false, false, false, false];
+        let gameActive = false;
         
-        const scoreSpan = document.getElementById('scoreValue');
-        const infoDiv = document.getElementById('infoText');
-        const scene = document.getElementById('scene');
-        
-        const messages = [
+        // Сообщения для информационной панели
+        const ecoMessages = [
             "🔋 Батарейка найдена! +1 балл. Одна батарейка отравляет 20 м² земли.",
-            "🍼 Бутылка найдена! +1 балл. Пластик разлагается 450 лет.",
-            "🥤 Стаканчик найден! +1 балл. Бери с собой термокружку!",
-            "💨 Баллончик найден! +1 балл. Аэрозоли разрушают озон."
+            "🍼 Бутылка найдена! +1 балл. Пластик разлагается 450 лет и убивает животных.",
+            "🥤 Стаканчик найден! +1 балл. Бери с собой термокружку и спасай деревья!",
+            "💨 Баллончик найден! +1 балл. Аэрозоли разрушают озоновый слой."
         ];
         
-        function updateScore() {
-            scoreSpan.textContent = found;
+        function updateUI() {
+            scoreSpan.innerText = found;
             if (found === total && !window.gameEnded) {
                 window.gameEnded = true;
-                const div = document.createElement('div');
-                div.className = 'congrats';
-                div.innerHTML = '🎉 ТЫ ЭКО-ГЕРОЙ! 🎉<br>🌿 Спас планету от мусора 🌿';
-                document.body.appendChild(div);
-                setTimeout(() => div.remove(), 5000);
-                infoDiv.innerHTML = "Поздравляем! Ты собрал все 4 предмета!";
+                const congratsDiv = document.createElement('div');
+                congratsDiv.className = 'congrats';
+                congratsDiv.innerHTML = '🎉 ТЫ ЭКО-ГЕРОЙ! 🎉<br><span style="font-size:16px;">Спас планету от мусора 🌿</span>';
+                document.body.appendChild(congratsDiv);
+                setTimeout(() => congratsDiv.remove(), 5000);
+                infoDiv.innerHTML = "Поздравляем! Ты собрал все 4 предмета! Так держать!";
             }
         }
         
-        // Автоматически запускаем AR при загрузке страницы
-        window.addEventListener('load', async () => {
-            infoDiv.innerHTML = "🔄 Загрузка камеры...";
+        // ГЛАВНАЯ ФУНКЦИЯ ЗАПУСКА
+        async function startExperience() {
+            if (gameActive) return;
+            startBtn.disabled = true;
+            startBtn.innerText = "🔄 ЗАПУСКАЕМ КАМЕРУ...";
             
-            // Ждём загрузки компонента
-            const waitForMindAR = setInterval(() => {
-                if (scene.components && scene.components['mindar-image']) {
-                    clearInterval(waitForMindAR);
-                    startAR();
-                }
-            }, 200);
-        });
-        
-        async function startAR() {
             try {
-                await scene.components['mindar-image'].start();
-                infoDiv.innerHTML = "✅ Камера работает! Наведи на: бутылку, батарейку, стаканчик, баллончик";
+                // 1. Принудительно запрашиваем камеру (чтобы на iOS точно появилось разрешение)
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                stream.getTracks().forEach(track => track.stop());
                 
-                // Слушаем находки
+                // 2. Ждём полную загрузку компонента (фикс твоей ошибки start is not a function)
+                await new Promise(resolve => {
+                    const checkInterval = setInterval(() => {
+                        if (scene.components && scene.components['mindar-image'] && typeof scene.components['mindar-image'].start === 'function') {
+                            clearInterval(checkInterval);
+                            resolve();
+                        }
+                    }, 200);
+                });
+                
+                // 3. Стартуем отслеживание
+                await scene.components['mindar-image'].start();
+                gameActive = true;
+                startBtn.style.display = 'none';
+                infoDiv.innerHTML = "✅ Камера работает! Наведи на реальные предметы: бутылка, батарейка, стакан, баллончик";
+                
+                // 4. Слушаем события нахождения
                 document.querySelector('a-scene').addEventListener('mindar-image-target-found', (e) => {
                     const idx = e.detail.targetIndex;
                     if (!completed[idx] && found < total) {
                         completed[idx] = true;
                         found++;
-                        updateScore();
-                        infoDiv.innerHTML = messages[idx];
+                        updateUI();
+                        infoDiv.innerHTML = ecoMessages[idx];
                         if (navigator.vibrate) navigator.vibrate(100);
+                        // Через 4 секунды вернём подсказку
                         setTimeout(() => {
-                            if (found < total) infoDiv.innerHTML = "📷 Ищи дальше! Наведи на следующий предмет";
+                            if (found < total) infoDiv.innerHTML = "📷 Ищи дальше! Наведи на другой предмет";
                         }, 4000);
                     }
                 });
-            } catch(err) {
-                console.error(err);
-                infoDiv.innerHTML = "❌ Ошибка камеры. Обнови страницу и разреши доступ.";
+                
+            } catch (err) {
+                console.error("Ошибка:", err);
+                startBtn.disabled = false;
+                startBtn.innerText = "❌ ПОВТОРИТЬ ЗАПУСК";
+                infoDiv.innerHTML = "Ошибка доступа к камере. Нажми «Повторить» и разреши доступ.";
+                gameActive = false;
             }
         }
+        
+        startBtn.addEventListener('click', startExperience);
+        
+        // Подсказка, если что-то пошло не так
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                if (!gameActive && startBtn.style.display !== 'none') {
+                    infoDiv.innerHTML = "Готов к игре? Нажми «Запустить квест» и наведи камеру на предметы";
+                }
+            }, 1000);
+        });
     </script>
 </body>
 </html>
