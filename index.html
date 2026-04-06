@@ -6,21 +6,20 @@
     <title>Эко-патруль — AR квест</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; overflow: hidden; }
         .score-panel { position: fixed; top: 20px; right: 20px; z-index: 100; }
-        .score-box { background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); border-radius: 30px; padding: 12px 20px; color: white; font-weight: bold; }
+        .score-box { background: rgba(0,0,0,0.8); border-radius: 30px; padding: 12px 20px; color: white; font-weight: bold; }
         .score-label { font-size: 12px; color: #4CAF50; }
         .score-value { font-size: 32px; font-weight: 800; margin: 0 5px; }
         .score-total { font-size: 18px; opacity: 0.7; }
-        .info-panel { position: fixed; bottom: 20px; left: 20px; right: 20px; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); border-radius: 20px; padding: 15px; color: white; z-index: 100; border-left: 4px solid #4CAF50; }
+        .info-panel { position: fixed; bottom: 20px; left: 20px; right: 20px; background: rgba(0,0,0,0.85); border-radius: 20px; padding: 15px; color: white; z-index: 100; border-left: 4px solid #4CAF50; }
         .info-title { font-weight: bold; font-size: 14px; color: #4CAF50; margin-bottom: 5px; }
         .info-text { font-size: 14px; line-height: 1.4; }
         .start-btn { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: #4CAF50; color: white; border: none; padding: 14px 30px; border-radius: 50px; font-size: 18px; font-weight: bold; z-index: 200; cursor: pointer; }
         .congrats { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg, #4CAF50, #2E7D32); color: white; padding: 25px 35px; border-radius: 30px; text-align: center; z-index: 300; font-weight: bold; font-size: 20px; }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.0/dist/mindar-image.prod.js"></script>
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.0/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 </head>
 <body>
     <div class="score-panel">
@@ -38,21 +37,13 @@
 
     <button class="start-btn" id="startBtn">📷 ЗАПУСТИТЬ AR</button>
 
-    <a-scene id="scene" mindar-image="imageTargetSrc: targets.mind;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
-        <a-camera active="true" position="0 0 0"></a-camera>
+    <a-scene id="scene" embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+        <a-camera></a-camera>
         
-        <a-entity mindar-image-target="targetIndex: 0">
-            <a-plane position="0 0 -0.2" width="1.6" height="1.2" color="#FF5722" opacity="0.95"></a-plane>
-        </a-entity>
-        <a-entity mindar-image-target="targetIndex: 1">
-            <a-plane position="0 0 -0.2" width="1.6" height="1.2" color="#4CAF50" opacity="0.95"></a-plane>
-        </a-entity>
-        <a-entity mindar-image-target="targetIndex: 2">
-            <a-plane position="0 0 -0.2" width="1.6" height="1.2" color="#2196F3" opacity="0.95"></a-plane>
-        </a-entity>
-        <a-entity mindar-image-target="targetIndex: 3">
-            <a-plane position="0 0 -0.2" width="1.6" height="1.2" color="#9C27B0" opacity="0.95"></a-plane>
-        </a-entity>
+        <!-- Маркер 0: Батарейка (hiro) -->
+        <a-marker preset="hiro" id="marker0">
+            <a-plane position="0 0 0" width="1.5" height="1.5" color="#FF5722" opacity="0.9"></a-plane>
+        </a-marker>
     </a-scene>
 
     <script>
@@ -94,26 +85,41 @@
             startBtn.disabled = true;
             
             try {
-                await scene.components['mindar-image'].start();
+                // Запрашиваем доступ к камере вручную
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                stream.getTracks().forEach(track => track.stop());
+                
                 arStarted = true;
                 startBtn.style.display = 'none';
-                infoTextElement.textContent = "✅ Камера работает! Наведи на предметы";
+                infoTextElement.textContent = "✅ Камера работает! Наведи на маркер Hiro (чёрно-белый квадрат)";
                 
-                document.querySelector('a-scene').addEventListener('mindar-image-target-found', (e) => {
-                    const idx = e.detail.targetIndex;
-                    if (!collected[idx] && !gameFinished) {
-                        collected[idx] = true;
-                        foundItems++;
-                        updateScore();
-                        infoTextElement.innerHTML = `<strong>🔍 НАЙДЕНО!</strong><br>${messages[idx]}`;
-                        if (navigator.vibrate) navigator.vibrate(200);
-                        setTimeout(() => {
-                            if (foundItems < totalItems && !gameFinished) {
-                                infoTextElement.innerHTML = "📷 Ищи дальше! Наведи на: бутылку, батарейку, стаканчик, баллончик";
-                            }
-                        }, 5000);
+                // Слушаем появление маркера
+                const marker = document.getElementById('marker0');
+                let markerFound = false;
+                
+                marker.addEventListener('markerFound', () => {
+                    if (!markerFound && !gameFinished && foundItems < totalItems) {
+                        markerFound = true;
+                        const idx = foundItems; // по порядку: сначала батарейка, потом бутылка и т.д.
+                        if (!collected[idx]) {
+                            collected[idx] = true;
+                            foundItems++;
+                            updateScore();
+                            infoTextElement.innerHTML = `<strong>🔍 НАЙДЕНО!</strong><br>${messages[idx]}`;
+                            if (navigator.vibrate) navigator.vibrate(200);
+                            setTimeout(() => {
+                                if (foundItems < totalItems && !gameFinished) {
+                                    infoTextElement.innerHTML = "📷 Отличная работа! Наведи на следующий маркер (тот же Hiro)";
+                                }
+                            }, 5000);
+                        }
                     }
                 });
+                
+                marker.addEventListener('markerLost', () => {
+                    markerFound = false;
+                });
+                
             } catch(err) {
                 console.error(err);
                 startBtn.textContent = "❌ НАЖМИ СНОВА";
