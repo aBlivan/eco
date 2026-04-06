@@ -2,15 +2,15 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-    <title>Эко-патруль — AR квест</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+    <title>Эко-патруль</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             position: fixed;
             top: 0;
@@ -18,259 +18,418 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            font-family: 'Segoe UI', Roboto, -apple-system, sans-serif;
-            background: black;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #111;
         }
-        
+
         /* Счётчик */
         .score {
             position: absolute;
-            top: 20px;
+            top: env(safe-area-inset-top, 20px);
             right: 20px;
             background: rgba(0,0,0,0.75);
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             border-radius: 30px;
             padding: 10px 18px;
             color: white;
             z-index: 200;
             text-align: center;
             font-weight: bold;
-            border: 1px solid rgba(255,255,255,0.2);
-            font-size: 14px;
+            border: 1px solid rgba(255,255,255,0.15);
+            margin-top: 20px;
         }
         .score-num {
             font-size: 32px;
-            color: #4CAF50;
-            font-weight: 800;
+            color: #66BB6A;
         }
-        
+
         /* Нижняя панель */
         .info {
             position: absolute;
             bottom: 20px;
             left: 20px;
             right: 20px;
+            bottom: calc(env(safe-area-inset-bottom, 20px) + 10px);
             background: rgba(0,0,0,0.85);
             backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
             border-radius: 20px;
-            padding: 15px;
+            padding: 15px 18px;
             color: white;
             z-index: 200;
-            border-left: 5px solid #4CAF50;
+            border-left: 5px solid #66BB6A;
+            transition: opacity 0.3s;
         }
         .info-title {
-            font-size: 14px;
-            color: #4CAF50;
-            margin-bottom: 5px;
+            font-size: 13px;
+            color: #66BB6A;
+            margin-bottom: 4px;
             font-weight: bold;
-            letter-spacing: 1px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         .info-text {
-            font-size: 14px;
-            line-height: 1.4;
+            font-size: 15px;
+            line-height: 1.45;
         }
-        
-        /* Кнопка запуска */
+
+        /* Стартовый экран */
+        .start-screen {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(160deg, #1b1b1b 0%, #0d2b0d 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 500;
+            padding: 30px;
+            text-align: center;
+            color: white;
+        }
+        .start-screen h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        .start-screen p {
+            font-size: 15px;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 30px;
+            max-width: 300px;
+            line-height: 1.5;
+        }
         .start-btn {
-            position: absolute;
-            bottom: 120px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #4CAF50;
+            background: #43A047;
             color: white;
             border: none;
-            padding: 16px 32px;
+            padding: 16px 40px;
             border-radius: 50px;
             font-size: 18px;
             font-weight: bold;
-            z-index: 300;
             cursor: pointer;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-            transition: 0.2s;
+            box-shadow: 0 4px 25px rgba(67,160,71,0.4);
+            transition: transform 0.15s, box-shadow 0.15s;
+            -webkit-tap-highlight-color: transparent;
         }
         .start-btn:active {
-            transform: translateX(-50%) scale(0.97);
+            transform: scale(0.96);
+            box-shadow: 0 2px 12px rgba(67,160,71,0.3);
         }
-        
+        .start-btn:disabled {
+            background: #555;
+            box-shadow: none;
+        }
+
         /* Поздравление */
-        .congrats {
+        .congrats-overlay {
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: linear-gradient(135deg, #2E7D32, #4CAF50);
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 400;
+            animation: fadeIn 0.3s;
+        }
+        .congrats {
+            background: linear-gradient(135deg, #2E7D32, #66BB6A);
             color: white;
-            padding: 25px 35px;
+            padding: 30px 35px;
             border-radius: 25px;
             text-align: center;
-            z-index: 400;
             font-size: 20px;
             font-weight: bold;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            white-space: nowrap;
+            line-height: 1.5;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            animation: popIn 0.4s cubic-bezier(0.17, 0.67, 0.35, 1.3);
         }
-        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes popIn { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        /* Анимация найденного предмета */
+        .info.found-pulse {
+            animation: pulse 0.5s;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+            100% { transform: scale(1); }
+        }
+
         .hidden {
-            display: none;
-        }
-        
-        a-scene {
-            width: 100%;
-            height: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
+            display: none !important;
         }
     </style>
-    
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.0/dist/mindar-image.prod.js"></script>
+
+    <!-- ВАЖНО: A-Frame ДОЛЖЕН загружаться ДО MindAR -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.0/dist/mindar-image.prod.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.0/dist/mindar-image-aframe.prod.js"></script>
 </head>
 <body>
 
-    <!-- Счётчик (сначала скрыт) -->
+    <!-- Стартовый экран -->
+    <div class="start-screen" id="startScreen">
+        <h1>🌍 Эко-патруль</h1>
+        <p>Найди 4 вредных предмета вокруг тебя, наведи на них камеру и узнай, чем они опасны для природы!</p>
+        <button class="start-btn" id="startBtn">📷 Начать квест</button>
+    </div>
+
+    <!-- Счётчик -->
     <div class="score hidden" id="scorePanel">
-        🌍 НАЙДЕНО<br>
-        <span class="score-num" id="scoreCount">0</span>/4
+        🌍 Найдено<br>
+        <span class="score-num" id="scoreCount">0</span> / 4
     </div>
 
-    <!-- Нижняя панель (сначала скрыта) -->
+    <!-- Нижняя панель -->
     <div class="info hidden" id="infoPanel">
-        <div class="info-title">♻️ ЭКО-ПАТРУЛЬ</div>
-        <div class="info-text" id="infoMsg">Наведи на предметы</div>
+        <div class="info-title">♻️ Эко-патруль</div>
+        <div class="info-text" id="infoMsg">Наведи камеру на предметы</div>
     </div>
 
-    <!-- Кнопка запуска -->
-    <button class="start-btn" id="startBtn">📷 НАЧАТЬ КВЕСТ</button>
-
-    <!-- AR сцена -->
-    <a-scene 
-        id="scene" 
-        mindar-image="imageTargetSrc: targets.mind;" 
-        vr-mode-ui="enabled: false"
-        device-orientation-permission-ui="enabled: false"
-        embedded>
-        
-        <a-camera active="true"></a-camera>
-        
-        <!-- Триггер 0: Батарейка -->
-        <a-entity mindar-image-target="targetIndex: 0">
-            <a-plane position="0 0 -0.15" width="1.5" height="1.0" color="#FF5722" opacity="0.95">
-                <a-text value="🔋 БАТАРЕЙКА: Одна батарейка загрязняет 20 м² земли и 400 литров воды. Содержит ртуть и свинец!" color="white" align="center" width="1.4" wrap-count="24" position="0 0 0.01"></a-text>
-            </a-plane>
-        </a-entity>
-
-        <!-- Триггер 1: Пластиковая бутылка -->
-        <a-entity mindar-image-target="targetIndex: 1">
-            <a-plane position="0 0 -0.15" width="1.5" height="1.0" color="#4CAF50" opacity="0.95">
-                <a-text value="🍼 БУТЫЛКА: Разлагается 450 лет! Убивает морских животных. Микропластик попадает в еду!" color="white" align="center" width="1.4" wrap-count="24" position="0 0 0.01"></a-text>
-            </a-plane>
-        </a-entity>
-
-        <!-- Триггер 2: Одноразовый стаканчик -->
-        <a-entity mindar-image-target="targetIndex: 2">
-            <a-plane position="0 0 -0.15" width="1.5" height="1.0" color="#2196F3" opacity="0.95">
-                <a-text value="🥤 СТАКАНЧИК: 1 дерево на 1000 стаканов. Внутри пластиковая плёнка — НЕ перерабатывается!" color="white" align="center" width="1.4" wrap-count="24" position="0 0 0.01"></a-text>
-            </a-plane>
-        </a-entity>
-
-        <!-- Триггер 3: Аэрозольный баллончик -->
-        <a-entity mindar-image-target="targetIndex: 3">
-            <a-plane position="0 0 -0.15" width="1.5" height="1.0" color="#9C27B0" opacity="0.95">
-                <a-text value="💨 БАЛЛОНЧИК: Разрушает озоновый слой, вызывает смог и болезни дыхания. Выбирай без аэрозоля!" color="white" align="center" width="1.4" wrap-count="24" position="0 0 0.01"></a-text>
-            </a-plane>
-        </a-entity>
-    </a-scene>
+    <!-- AR сцена — создаётся динамически после нажатия кнопки -->
+    <div id="sceneContainer"></div>
 
     <script>
         let found = 0;
-        let collected = [false, false, false, false];
+        const totalTargets = 4;
+        let collected = new Array(totalTargets).fill(false);
         let gameEnded = false;
-        let arStarted = false;
-        
+
         const scorePanel = document.getElementById('scorePanel');
         const infoPanel = document.getElementById('infoPanel');
         const infoMsg = document.getElementById('infoMsg');
         const scoreSpan = document.getElementById('scoreCount');
-        const sceneEl = document.getElementById('scene');
+        const startScreen = document.getElementById('startScreen');
         const startBtn = document.getElementById('startBtn');
-        
-        const ecoTexts = [
-            "🔋 Батарейка найдена! +1. Сдавай батарейки в специальные пункты приёма!",
-            "🍼 Бутылка найдена! +1. Используй многоразовую бутылку для воды!",
-            "🥤 Стаканчик найден! +1. Бери с собой термокружку в кофейню!",
-            "💨 Баллончик найден! +1. Выбирай продукты в формате без аэрозоля (пшикалка)!"
+        const sceneContainer = document.getElementById('sceneContainer');
+
+        // Данные таргетов (без эмодзи — a-text их не рендерит)
+        const targets = [
+            {
+                index: 0,
+                color: "#FF5722",
+                label: "БАТАРЕЙКА",
+                arText: "БАТАРЕЙКА\nОдна батарейка\nзагрязняет 20 кв.м земли!\nСдавай в пункт приёма.",
+                foundMsg: "🔋 Батарейка найдена! Сдавай в пункты приёма!",
+            },
+            {
+                index: 1,
+                color: "#4CAF50",
+                label: "БУТЫЛКА",
+                arText: "БУТЫЛКА\nРазлагается 450 лет\nи убивает животных.\nИспользуй многоразовую!",
+                foundMsg: "🍼 Бутылка найдена! Используй многоразовую!",
+            },
+            {
+                index: 2,
+                color: "#2196F3",
+                label: "СТАКАНЧИК",
+                arText: "СТАКАНЧИК\nНе перерабатывается!\nБери термокружку\nс собой.",
+                foundMsg: "🥤 Стаканчик найден! Бери термокружку!",
+            },
+            {
+                index: 3,
+                color: "#9C27B0",
+                label: "БАЛЛОНЧИК",
+                arText: "БАЛЛОНЧИК\nРазрушает озоновый слой.\nВыбирай средства\nбез аэрозоля!",
+                foundMsg: "💨 Баллончик найден! Выбирай без аэрозоля!",
+            },
         ];
-        
-        function updateUI() {
+
+        function updateUI(idx) {
+            found++;
             scoreSpan.textContent = found;
-            if (found === 4 && !gameEnded) {
+            infoMsg.innerHTML = targets[idx].foundMsg;
+
+            // Пульс-анимация
+            infoPanel.classList.remove('found-pulse');
+            void infoPanel.offsetWidth; // reflow
+            infoPanel.classList.add('found-pulse');
+
+            // Вибрация
+            if (navigator.vibrate) navigator.vibrate(100);
+
+            if (found >= totalTargets && !gameEnded) {
                 gameEnded = true;
-                const div = document.createElement('div');
-                div.className = 'congrats';
-                div.innerHTML = '🎉 ПОЗДРАВЛЯЮ! 🎉<br>Ты эко-герой! 🌿<br><span style="font-size: 14px;">Спас планету от мусора</span>';
-                document.body.appendChild(div);
-                setTimeout(() => div.remove(), 5000);
-                infoMsg.innerHTML = "Ура! Ты собрал все 4 предмета! Так держать! ♻️";
+                setTimeout(showCongrats, 800);
+            } else {
+                setTimeout(() => {
+                    if (!gameEnded) {
+                        infoMsg.innerHTML = `📷 Ищи дальше! Осталось: ${totalTargets - found}`;
+                    }
+                }, 3500);
             }
         }
-        
-        async function startAR() {
-            if (arStarted) return;
-            
-            startBtn.textContent = "🔄 ЗАПУСК...";
-            startBtn.disabled = true;
-            
+
+        function showCongrats() {
+            infoMsg.innerHTML = "🎉 Ты собрал все предметы!";
+            const overlay = document.createElement('div');
+            overlay.className = 'congrats-overlay';
+            overlay.innerHTML = `
+                <div class="congrats">
+                    🎉 Поздравляю! 🎉<br><br>
+                    Ты настоящий эко-герой! 🌿<br>
+                    <small style="opacity:0.8; font-weight:normal; font-size:14px;">Все 4 предмета найдены</small>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            overlay.addEventListener('click', () => overlay.remove());
+        }
+
+        // Кэш стрима камеры — запрашиваем один раз, переиспользуем
+        let cachedStream = null;
+
+        // Проверяем разрешение камеры при загрузке страницы
+        async function checkCameraPermission() {
             try {
-                // Показываем сцену
-                sceneEl.style.display = "block";
-                
-                // Ждём загрузки компонента MindAR
+                // Permissions API — проверяем без запроса у пользователя
+                if (navigator.permissions && navigator.permissions.query) {
+                    const result = await navigator.permissions.query({ name: 'camera' });
+                    if (result.state === 'granted') {
+                        // Разрешение уже дано — получаем стрим заранее
+                        cachedStream = await navigator.mediaDevices.getUserMedia({
+                            video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+                        });
+                        console.log("Camera stream cached on load");
+                    }
+                }
+            } catch (e) {
+                console.log("Permission pre-check skipped:", e.message);
+            }
+        }
+
+        // Получить стрим (из кэша или запросить новый)
+        async function getCameraStream() {
+            if (cachedStream && cachedStream.active) {
+                return cachedStream;
+            }
+            cachedStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+            });
+            return cachedStream;
+        }
+
+        async function startAR() {
+            startBtn.textContent = "🔄 Запуск камеры...";
+            startBtn.disabled = true;
+
+            try {
+                // 1) Получаем стрим камеры (из кэша, если уже был)
+                const stream = await getCameraStream();
+
+                // 2) Создаём видео-элемент и передаём в него стрим,
+                //    чтобы MindAR подхватил уже открытую камеру
+                const video = document.createElement('video');
+                video.setAttribute('id', 'arVideo');
+                video.setAttribute('autoplay', '');
+                video.setAttribute('playsinline', '');
+                video.setAttribute('muted', '');
+                video.srcObject = stream;
+                video.style.display = 'none';
+                document.body.appendChild(video);
+                await video.play();
+
+                // 3) Собираем HTML сцены
+                let entitiesHTML = '';
+                targets.forEach(t => {
+                    entitiesHTML += `
+                        <a-entity mindar-image-target="targetIndex: ${t.index}" id="target-${t.index}">
+                            <a-plane 
+                                position="0 0 0" 
+                                width="1.2" height="0.8" 
+                                material="color: ${t.color}; opacity: 0.92; side: double"
+                                geometry="primitive: plane; width: 1.2; height: 0.8">
+                                <a-text 
+                                    value="${t.arText}" 
+                                    color="white" 
+                                    align="center" 
+                                    width="1.0" 
+                                    wrap-count="18"
+                                    position="0 0 0.01"
+                                    font="roboto"
+                                    line-height="55"
+                                    baseline="center"
+                                    anchor="center">
+                                </a-text>
+                            </a-plane>
+                        </a-entity>
+                    `;
+                });
+
+                sceneContainer.innerHTML = `
+                    <a-scene
+                        id="arScene"
+                        mindar-image="imageTargetSrc: targets.mind; maxTrack: 2; filterMinCF: 0.001; filterBeta: 1000;"
+                        vr-mode-ui="enabled: false"
+                        device-orientation-permission-ui="enabled: false"
+                        loading-screen="enabled: false"
+                        renderer="colorManagement: true; sortObjects: true; antialias: true;"
+                        embedded
+                        style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;">
+                        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+                        ${entitiesHTML}
+                    </a-scene>
+                `;
+
+                const sceneEl = document.getElementById('arScene');
+
+                // Ждём загрузки сцены
+                await new Promise((resolve, reject) => {
+                    let timeout = setTimeout(() => reject(new Error("Сцена не загрузилась. Проверь соединение.")), 30000);
+
+                    sceneEl.addEventListener('loaded', () => {
+                        clearTimeout(timeout);
+                        resolve();
+                    });
+
+                    if (sceneEl.hasLoaded) {
+                        clearTimeout(timeout);
+                        resolve();
+                    }
+                });
+
+                // Ждём компонент MindAR
                 let waits = 0;
                 while (!sceneEl.components || !sceneEl.components['mindar-image']) {
                     await new Promise(r => setTimeout(r, 100));
                     waits++;
-                    if (waits > 50) throw new Error("MindAR не загрузился");
+                    if (waits > 100) throw new Error("MindAR не инициализировался");
                 }
-                
-                // Запускаем камеру
+
+                // Запускаем MindAR
                 await sceneEl.components['mindar-image'].start();
-                arStarted = true;
-                
-                // Прячем кнопку, показываем панели
-                startBtn.style.display = 'none';
+
+                // Убираем стартовый экран, показываем UI
+                startScreen.classList.add('hidden');
                 scorePanel.classList.remove('hidden');
                 infoPanel.classList.remove('hidden');
-                infoMsg.innerHTML = "✅ Камера работает! Наведи на настоящие предметы: бутылку, батарейку, стаканчик, баллончик";
-                
-                // Слушаем находки
-                sceneEl.addEventListener('mindar-image-target-found', (e) => {
-                    const idx = e.detail.targetIndex;
-                    if (!collected[idx] && !gameEnded) {
-                        collected[idx] = true;
-                        found++;
-                        updateUI();
-                        infoMsg.innerHTML = ecoTexts[idx];
-                        if (navigator.vibrate) navigator.vibrate(100);
-                        
-                        setTimeout(() => {
-                            if (found < 4 && !gameEnded) {
-                                infoMsg.innerHTML = "📷 Отлично! Ищи дальше! Наведи на следующий предмет";
+                infoMsg.innerHTML = "✅ Камера работает! Наведи на предметы";
+
+                // Вешаем обработчики на КАЖДЫЙ таргет
+                targets.forEach(t => {
+                    const entity = document.getElementById(`target-${t.index}`);
+                    if (entity) {
+                        entity.addEventListener('targetFound', () => {
+                            if (!collected[t.index] && !gameEnded) {
+                                collected[t.index] = true;
+                                updateUI(t.index);
                             }
-                        }, 4000);
+                        });
                     }
                 });
-                
-            } catch(err) {
-                console.error(err);
-                startBtn.textContent = "📷 ПОВТОРИТЬ";
+
+            } catch (err) {
+                console.error("AR Error:", err);
+                startBtn.textContent = "📷 Повторить";
                 startBtn.disabled = false;
-                infoMsg.innerHTML = "Ошибка: " + (err.message || "проверь разрешения камеры");
-                sceneEl.style.display = "none";
+                alert("Ошибка запуска: " + err.message + "\n\nУбедись, что разрешил доступ к камере.");
             }
         }
-        
+
+        // При загрузке страницы — тихо проверяем камеру
+        checkCameraPermission();
+
         startBtn.addEventListener('click', startAR);
     </script>
 </body>
