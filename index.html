@@ -22,7 +22,6 @@
             background: black;
         }
         
-        /* Счётчик */
         .score {
             position: absolute;
             top: 20px;
@@ -42,7 +41,6 @@
             color: #4CAF50;
         }
         
-        /* Нижняя панель */
         .info {
             position: absolute;
             bottom: 20px;
@@ -67,7 +65,33 @@
             line-height: 1.4;
         }
         
-        /* Поздравление */
+        .start-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+            backdrop-filter: blur(5px);
+        }
+        .start-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 50px;
+            font-size: 20px;
+            font-weight: bold;
+            margin-top: 20px;
+            cursor: pointer;
+        }
         .congrats {
             position: fixed;
             top: 50%;
@@ -78,19 +102,9 @@
             padding: 25px;
             border-radius: 25px;
             text-align: center;
-            z-index: 200;
+            z-index: 300;
             font-size: 20px;
             font-weight: bold;
-        }
-        
-        /* Контейнер для AR */
-        .ar-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
         }
         
         a-scene {
@@ -108,14 +122,21 @@
 </head>
 <body>
 
-    <div class="score">
+    <div class="score" style="display: none;" id="scorePanel">
         🌍 НАЙДЕНО<br>
         <span class="score-num" id="scoreCount">0</span>/4
     </div>
 
-    <div class="info">
+    <div class="info" style="display: none;" id="infoPanel">
         <div class="info-title">♻️ ЭКО-ПАТРУЛЬ</div>
-        <div class="info-text" id="infoMsg">Загрузка камеры...</div>
+        <div class="info-text" id="infoMsg">Наведи на предметы</div>
+    </div>
+
+    <div class="start-overlay" id="startOverlay">
+        <div style="font-size: 24px; margin-bottom: 20px;">♻️ ЭКО-ПАТРУЛЬ</div>
+        <div style="font-size: 16px; margin-bottom: 30px; padding: 0 20px;">Наведи камеру на:<br>🍼 бутылку, 🔋 батарейку, 🥤 стаканчик, 💨 баллончик</div>
+        <button class="start-btn" id="startBtn">📷 НАЧАТЬ КВЕСТ</button>
+        <div style="font-size: 12px; margin-top: 30px; opacity: 0.6;">Потребуется доступ к камере</div>
     </div>
 
     <a-scene 
@@ -124,11 +145,11 @@
         vr-mode-ui="enabled: false"
         device-orientation-permission-ui="enabled: false"
         embedded
-        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
+        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none;"
+        id="scene">
         
         <a-camera active="true"></a-camera>
         
-        <!-- Квадраты с текстом -->
         <a-entity mindar-image-target="targetIndex: 0">
             <a-plane position="0 0 -0.15" width="1.4" height="0.9" color="#FF5722" opacity="0.95">
                 <a-text value="🔋 БАТАРЕЙКА: Одна батарейка загрязняет 20 м² земли" color="white" align="center" width="1.3" wrap-count="20" position="0 0 0.01"></a-text>
@@ -158,10 +179,15 @@
         let found = 0;
         let collected = [false, false, false, false];
         let gameEnded = false;
+        let arStarted = false;
         
         const scoreSpan = document.getElementById('scoreCount');
         const infoMsg = document.getElementById('infoMsg');
         const sceneEl = document.getElementById('scene');
+        const startOverlay = document.getElementById('startOverlay');
+        const scorePanel = document.getElementById('scorePanel');
+        const infoPanel = document.getElementById('infoPanel');
+        const startBtn = document.getElementById('startBtn');
         
         const ecoTexts = [
             "🔋 Батарейка найдена! +1. Сдавай в пункты приёма!",
@@ -179,32 +205,36 @@
                 div.innerHTML = '🎉 ПОЗДРАВЛЯЮ! 🎉<br>Ты эко-герой! 🌿';
                 document.body.appendChild(div);
                 setTimeout(() => div.remove(), 5000);
-                infoMsg.innerHTML = "Ура! Ты собрал все 4 предмета! Спасибо за заботу о планете!";
+                infoMsg.innerHTML = "Ура! Ты собрал все 4 предмета!";
             }
         }
         
-        // Запускаем AR
-        async function initAR() {
-            infoMsg.innerHTML = "🔄 Запуск камеры...";
+        async function startAR() {
+            if (arStarted) return;
             
-            // Ждём пока компонент загрузится
-            let tries = 0;
-            const waitForComponent = setInterval(() => {
-                tries++;
-                if (sceneEl.components && sceneEl.components['mindar-image']) {
-                    clearInterval(waitForComponent);
-                    startMindAR();
-                } else if (tries > 30) {
-                    clearInterval(waitForComponent);
-                    infoMsg.innerHTML = "❌ Ошибка. Обнови страницу и разреши доступ к камере.";
-                }
-            }, 200);
-        }
-        
-        async function startMindAR() {
+            startBtn.textContent = "🔄 ЗАПУСК...";
+            startBtn.disabled = true;
+            
             try {
+                // Сначала показываем сцену
+                sceneEl.style.display = "block";
+                
+                // Ждём компонент
+                let waits = 0;
+                while (!sceneEl.components || !sceneEl.components['mindar-image']) {
+                    await new Promise(r => setTimeout(r, 100));
+                    waits++;
+                    if (waits > 50) throw new Error("Timeout loading MindAR");
+                }
+                
                 await sceneEl.components['mindar-image'].start();
-                infoMsg.innerHTML = "✅ Камера работает! Наведи на: бутылку, батарейку, стаканчик, баллончик";
+                arStarted = true;
+                
+                // Прячем оверлей, показываем интерфейс
+                startOverlay.style.display = "none";
+                scorePanel.style.display = "block";
+                infoPanel.style.display = "block";
+                infoMsg.innerHTML = "✅ Камера работает! Наведи на предметы";
                 
                 // Слушаем находки
                 sceneEl.addEventListener('mindar-image-target-found', (e) => {
@@ -223,16 +253,17 @@
                         }, 3500);
                     }
                 });
+                
             } catch(err) {
                 console.error(err);
-                infoMsg.innerHTML = "❌ Ошибка камеры. Обнови страницу и разреши доступ к камере в Safari.";
+                startBtn.textContent = "📷 НАЧАТЬ КВЕСТ";
+                startBtn.disabled = false;
+                infoMsg.innerHTML = "Ошибка: " + (err.message || "попробуй ещё раз");
+                sceneEl.style.display = "none";
             }
         }
         
-        // Стартуем после загрузки страницы
-        window.addEventListener('load', () => {
-            setTimeout(initAR, 500);
-        });
+        startBtn.addEventListener('click', startAR);
     </script>
 </body>
 </html>
