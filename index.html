@@ -22,6 +22,7 @@
             background: black;
         }
         
+        /* Счётчик */
         .score {
             position: absolute;
             top: 20px;
@@ -31,7 +32,7 @@
             border-radius: 30px;
             padding: 10px 18px;
             color: white;
-            z-index: 100;
+            z-index: 200;
             text-align: center;
             font-weight: bold;
             border: 1px solid rgba(255,255,255,0.2);
@@ -41,6 +42,7 @@
             color: #4CAF50;
         }
         
+        /* Нижняя панель */
         .info {
             position: absolute;
             bottom: 20px;
@@ -51,7 +53,7 @@
             border-radius: 20px;
             padding: 15px;
             color: white;
-            z-index: 100;
+            z-index: 200;
             border-left: 5px solid #4CAF50;
         }
         .info-title {
@@ -65,23 +67,12 @@
             line-height: 1.4;
         }
         
-        .start-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.9);
-            z-index: 200;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            text-align: center;
-            backdrop-filter: blur(5px);
-        }
+        /* Кнопка запуска (большая, по центру) */
         .start-btn {
+            position: fixed;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
             background: #4CAF50;
             color: white;
             border: none;
@@ -89,9 +80,16 @@
             border-radius: 50px;
             font-size: 20px;
             font-weight: bold;
-            margin-top: 20px;
+            z-index: 300;
             cursor: pointer;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            transition: 0.2s;
         }
+        .start-btn:active {
+            transform: translateX(-50%) scale(0.97);
+        }
+        
+        /* Поздравление */
         .congrats {
             position: fixed;
             top: 50%;
@@ -102,7 +100,7 @@
             padding: 25px;
             border-radius: 25px;
             text-align: center;
-            z-index: 300;
+            z-index: 400;
             font-size: 20px;
             font-weight: bold;
         }
@@ -114,6 +112,10 @@
             top: 0;
             left: 0;
         }
+        
+        .hidden {
+            display: none;
+        }
     </style>
     
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.0/dist/mindar-image.prod.js"></script>
@@ -122,31 +124,29 @@
 </head>
 <body>
 
-    <div class="score" style="display: none;" id="scorePanel">
+    <!-- Счётчик (сначала скрыт) -->
+    <div class="score hidden" id="scorePanel">
         🌍 НАЙДЕНО<br>
         <span class="score-num" id="scoreCount">0</span>/4
     </div>
 
-    <div class="info" style="display: none;" id="infoPanel">
+    <!-- Нижняя панель (сначала скрыта) -->
+    <div class="info hidden" id="infoPanel">
         <div class="info-title">♻️ ЭКО-ПАТРУЛЬ</div>
         <div class="info-text" id="infoMsg">Наведи на предметы</div>
     </div>
 
-    <div class="start-overlay" id="startOverlay">
-        <div style="font-size: 24px; margin-bottom: 20px;">♻️ ЭКО-ПАТРУЛЬ</div>
-        <div style="font-size: 16px; margin-bottom: 30px; padding: 0 20px;">Наведи камеру на:<br>🍼 бутылку, 🔋 батарейку, 🥤 стаканчик, 💨 баллончик</div>
-        <button class="start-btn" id="startBtn">📷 НАЧАТЬ КВЕСТ</button>
-        <div style="font-size: 12px; margin-top: 30px; opacity: 0.6;">Потребуется доступ к камере</div>
-    </div>
+    <!-- Кнопка запуска -->
+    <button class="start-btn" id="startBtn">📷 НАЧАТЬ КВЕСТ</button>
 
+    <!-- AR сцена (сначала скрыта, чтобы не мешать кнопке) -->
     <a-scene 
         id="scene" 
         mindar-image="imageTargetSrc: targets.mind;" 
         vr-mode-ui="enabled: false"
         device-orientation-permission-ui="enabled: false"
         embedded
-        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none;"
-        id="scene">
+        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; visibility: hidden;">
         
         <a-camera active="true"></a-camera>
         
@@ -181,12 +181,11 @@
         let gameEnded = false;
         let arStarted = false;
         
-        const scoreSpan = document.getElementById('scoreCount');
-        const infoMsg = document.getElementById('infoMsg');
-        const sceneEl = document.getElementById('scene');
-        const startOverlay = document.getElementById('startOverlay');
         const scorePanel = document.getElementById('scorePanel');
         const infoPanel = document.getElementById('infoPanel');
+        const infoMsg = document.getElementById('infoMsg');
+        const scoreSpan = document.getElementById('scoreCount');
+        const sceneEl = document.getElementById('scene');
         const startBtn = document.getElementById('startBtn');
         
         const ecoTexts = [
@@ -216,24 +215,25 @@
             startBtn.disabled = true;
             
             try {
-                // Сначала показываем сцену
-                sceneEl.style.display = "block";
+                // Показываем сцену
+                sceneEl.style.visibility = "visible";
                 
-                // Ждём компонент
+                // Ждём загрузки компонента MindAR
                 let waits = 0;
                 while (!sceneEl.components || !sceneEl.components['mindar-image']) {
                     await new Promise(r => setTimeout(r, 100));
                     waits++;
-                    if (waits > 50) throw new Error("Timeout loading MindAR");
+                    if (waits > 50) throw new Error("MindAR не загрузился");
                 }
                 
+                // Запускаем камеру
                 await sceneEl.components['mindar-image'].start();
                 arStarted = true;
                 
-                // Прячем оверлей, показываем интерфейс
-                startOverlay.style.display = "none";
-                scorePanel.style.display = "block";
-                infoPanel.style.display = "block";
+                // Прячем кнопку, показываем панели
+                startBtn.style.display = 'none';
+                scorePanel.classList.remove('hidden');
+                infoPanel.classList.remove('hidden');
                 infoMsg.innerHTML = "✅ Камера работает! Наведи на предметы";
                 
                 // Слушаем находки
@@ -256,10 +256,10 @@
                 
             } catch(err) {
                 console.error(err);
-                startBtn.textContent = "📷 НАЧАТЬ КВЕСТ";
+                startBtn.textContent = "📷 ПОВТОРИТЬ";
                 startBtn.disabled = false;
-                infoMsg.innerHTML = "Ошибка: " + (err.message || "попробуй ещё раз");
-                sceneEl.style.display = "none";
+                sceneEl.style.visibility = "hidden";
+                alert("Ошибка: " + err.message);
             }
         }
         
